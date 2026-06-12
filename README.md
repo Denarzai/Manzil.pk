@@ -3,6 +3,12 @@
 ## Project Overview
 MANZIL is a web-based platform for buying, selling, and renting properties. Users can browse listings, filter searches by location, price, and type, view detailed property pages with images, and communicate with sellers or agents.
 
+## Screenshots
+
+| Home | Search & Filters | Property Detail |
+|------|------------------|-----------------|
+| ![Home](screenshots/home.png) | ![Filters](screenshots/filter.png) | ![Detail](screenshots/property-detail.png) |
+
 ## Features
 - User authentication (register, login, logout)
 - Create, edit, and remove property listings with images
@@ -25,6 +31,7 @@ The application uses the exact packages listed in `requirements.txt`.
 - Flask==3.1.2
 - Flask-Login==0.6.3
 - Flask-SQLAlchemy==3.1.1
+- Flask-Migrate (database migrations; installs Alembic)
 - greenlet==3.2.4
 - itsdangerous==2.2.0
 - Jinja2==3.1.6
@@ -47,6 +54,12 @@ pip install -r requirements.txt
 
 ## Configuration
 - The repository includes an `instance/` folder for local configuration. Create or update `instance/config.py` (or set environment variables) to provide secrets and database URLs.
+- The session secret key is read from the `SECRET_KEY` environment variable, with a development-only fallback. Set a real value in production:
+
+```powershell
+$env:SECRET_KEY = "a-long-random-string"
+```
+
 - Typical environment variables used by the app:
 	- `FLASK_APP=app.py`
 	- `FLASK_ENV=development` (for local development)
@@ -105,6 +118,17 @@ This project was developed by a 3-person team as part of a Software Engineering 
 - Assisted in frontend and testing
 - Helped with UI improvements and bug fixes
 - Supported documentation and project refinement
+
+## Recent Fixes
+A bug-fixing and security-hardening pass after the course submission:
+
+- Registration now validates empty fields and duplicate usernames instead of crashing with a database IntegrityError
+- Session secret key moved from a hardcoded string to the `SECRET_KEY` environment variable
+- Property image uploads restricted to image file types, with timestamped filenames to prevent two uploads with the same name overwriting each other
+- Numeric form fields (price, area, bedrooms, bathrooms) no longer crash the server when left empty
+- Message attachment uploads no longer fail when the browser omits the Content-Length header
+- Suspended accounts are now actually blocked at login
+- `Flask-Migrate` added to `requirements.txt` (it was imported by the app but missing from the file, so fresh installs failed)
 
 ## Contributing
 Contributions are welcome. Typical workflow:

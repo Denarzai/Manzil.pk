@@ -19,3 +19,5 @@ static/uploads/
 .vscode/
 *.idea/
 *.DS_Store
+desktop.ini
+Thumbs.db

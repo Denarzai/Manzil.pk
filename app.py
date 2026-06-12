@@ -11,10 +11,29 @@ from sqlalchemy import and_, or_
 from models import db, User, Property, Message, Conversation, PropertyReport
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'my_very_secret_key_12345'
+# Read the secret key from the environment in production; the fallback is for local development only
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-only-change-me')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///site.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
+ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
+
+def to_float(value, default=0.0):
+    # Safely convert form input to float (empty fields would crash float())
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def to_int(value, default=0):
+    # Safely convert form input to int
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
 
 db.init_app(app)
 login_manager = LoginManager(app)
@@ -38,14 +57,22 @@ def register():
         return redirect(url_for('dashboard'))
 
     if request.method == 'POST':
-        username = request.form.get('username')
-        email = request.form.get('email')
-        password = request.form.get('password')
+        username = request.form.get('username', '').strip()
+        email = request.form.get('email', '').strip()
+        password = request.form.get('password', '')
 
-        
+        if not username or not email or not password:
+            flash('All fields are required!', 'danger')
+            return redirect(url_for('register'))
+
         user = User.query.filter_by(email=email).first()
         if user:
             flash('Email already registered!', 'danger')
+            return redirect(url_for('register'))
+
+        # Username must also be unique (DB enforces it, so check first to avoid a crash)
+        if User.query.filter_by(username=username).first():
+            flash('Username already taken!', 'danger')
             return redirect(url_for('register'))
 
         hashed_password = pbkdf2_sha256.hash(password)
@@ -72,6 +99,10 @@ def login():
         user = User.query.filter_by(email=email).first()
 
         if user and pbkdf2_sha256.verify(password, user.password):
+            # Suspended accounts are not allowed to log in
+            if user.is_suspended:
+                flash('Your account has been suspended. Please contact support.', 'danger')
+                return redirect(url_for('login'))
             login_user(user)
             flash('Logged in successfully!', 'success')
             next_page = request.args.get('next')
@@ -97,11 +128,11 @@ def add_property():
         title = request.form.get('title')
         type_ = request.form.get('type')
         purpose = request.form.get('purpose')
-        price = float(request.form.get('price', 0))
-        area = float(request.form.get('area', 0))
+        price = to_float(request.form.get('price'))
+        area = to_float(request.form.get('area'))
         unit = request.form.get('unit')
-        bedrooms = int(request.form.get('bedrooms', 0))
-        bathrooms = int(request.form.get('bathrooms', 0))
+        bedrooms = to_int(request.form.get('bedrooms'))
+        bathrooms = to_int(request.form.get('bathrooms'))
         floor = request.form.get('floor') or None
         furnished_status = request.form.get('furnished_status')
 
@@ -123,7 +154,7 @@ def add_property():
         email = request.form.get('email')
  
         image_files = request.files.getlist('images')
-        thumbnail_index = int(request.form.get('thumbnail_index', 0))
+        thumbnail_index = to_int(request.form.get('thumbnail_index'))
 
         latitude = request.form.get("latitude")
         longitude = request.form.get("longitude")
@@ -133,7 +164,13 @@ def add_property():
         if image_files:
             for image in image_files:
                 if image and image.filename:
-                    filename = secure_filename(image.filename)
+                    # Only allow real image file types
+                    ext = image.filename.rsplit('.', 1)[-1].lower() if '.' in image.filename else ''
+                    if ext not in ALLOWED_IMAGE_EXTENSIONS:
+                        flash(f"Skipped '{image.filename}': only image files are allowed.", 'danger')
+                        continue
+                    # Timestamp prefix so two uploads with the same name never overwrite each other
+                    filename = f"{datetime.datetime.now().timestamp()}_{secure_filename(image.filename)}"
                     path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                     image.save(path)
                     saved_filenames.append(filename)
@@ -300,11 +337,11 @@ def edit_property(property_id):
         property.title = request.form.get('title')
         property.type = request.form.get('type')
         property.purpose = request.form.get('purpose')
-        property.price = float(request.form.get('price', 0))
-        property.area = float(request.form.get('area', 0))
+        property.price = to_float(request.form.get('price'))
+        property.area = to_float(request.form.get('area'))
         property.unit = request.form.get('unit')
-        property.bedrooms = int(request.form.get('bedrooms', 0))
-        property.bathrooms = int(request.form.get('bathrooms', 0))
+        property.bedrooms = to_int(request.form.get('bedrooms'))
+        property.bathrooms = to_int(request.form.get('bathrooms'))
         property.floor = request.form.get('floor') or None
         property.furnished_status = request.form.get('furnished_status')
         property.city = request.form.get('city')
@@ -483,7 +520,8 @@ def send_message():
     if 'file' in request.files:
         file = request.files['file']
         if file and file.filename:
-            if file.content_length > 5 * 1024 * 1024:
+            # content_length can be None depending on the browser/server, so check it safely
+            if file.content_length and file.content_length > 5 * 1024 * 1024:
                 return jsonify({'error': 'File size exceeds 5MB limit'}), 400
             
             ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx'}
