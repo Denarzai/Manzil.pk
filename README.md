@@ -110,9 +110,10 @@ This project was developed by a 3-person team as part of a Software Engineering 
 - Coordinated tasks and ensured feature completion
 
 ### Muhammad Subhan
-- Assisted in frontend development
-- Worked on UI components and styling
-- Supported feature integration
+- Built the property listing, property detail, add/edit property, favorites, and messaging thread pages
+- Implemented the search and filter UI with multi-criteria inputs (location, price range, property type)
+- Applied responsive CSS layout and styling across all frontend pages
+- Led a post-submission security and hardening pass: added input validation on registration and numeric form fields, restricted image upload types with timestamped filenames, moved the session secret key to an environment variable, enforced suspended-account blocking at login, and fixed the missing Flask-Migrate dependency
 
 ### Affaf Shahid
 - Assisted in frontend and testing
