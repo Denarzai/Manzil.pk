@@ -60,6 +60,8 @@ pip install -r requirements.txt
 $env:SECRET_KEY = "a-long-random-string"
 ```
 
+> **Note on git history:** the initial commit contained a hardcoded placeholder secret key. It was never used in any deployment and is treated as rotated — since the hardening pass, the application only trusts the `SECRET_KEY` environment variable, and the in-code fallback is a non-secret development placeholder.
+
 - Typical environment variables used by the app:
 	- `FLASK_APP=app.py`
 	- `FLASK_ENV=development` (for local development)
